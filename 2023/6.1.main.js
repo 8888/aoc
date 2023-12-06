@@ -42,7 +42,7 @@ const doWork = () => {
 (async function processLineByLine() {
   try {
     const rl = createInterface({
-      input: createReadStream('6.1.input.txt'),
+      input: createReadStream('6.2.sample.txt'),
       crlfDelay: Infinity,
     });
 
