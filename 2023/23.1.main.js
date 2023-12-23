@@ -19,22 +19,37 @@ const parse = (line) => {
   end = [map.length - 1, line.length - 1];
 }
 
+const isInBounds = (row, col, grid) => {
+  return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
+}
+
 const search = () => {
   // does the path split?
-  let [row, col] = start;
-  seen.add(start.toString());
-  let steps = [];
-  directions.forEach(dir => {
-    const next = [row+dir[0], col+dir[1]];
-    if (!seen.has(next.toString()) && map[next[0]][next[1]] !== '#') {
-      steps.push(next);
+  let pathLength = 0;
+  let current = start;
+  while (current) {
+    let steps = [];
+    seen.add(current.toString());
+    let [row, col] = current;
+    directions.forEach(dir => {
+      const next = [row+dir[0], col+dir[1]];
+      if (
+        isInBounds(next[0], next[1], map) &&
+        !seen.has(next.toString()) &&
+        map[next[0]][next[1]] !== '#'
+      ) {
+        steps.push(next);
+      }
+    });
+    if (steps.length > 1) {
+      // at a split
+      current = null;
+    } else {
+      pathLength++;
+      current = steps[0];
     }
-  });
-  if (steps.length > 1) {
-
-  } else {
-
   }
+  console.log(pathLength);
 }
 
 (async function processLineByLine() {
@@ -50,7 +65,6 @@ const search = () => {
 
     await once(rl, 'close');
     search();
-    console.log(start)
 
   } catch (err) {
     console.error(err);
