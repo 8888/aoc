@@ -24,32 +24,47 @@ const isInBounds = (row, col, grid) => {
 }
 
 const search = () => {
-  // does the path split?
-  let pathLength = 0;
-  let current = start;
-  while (current) {
-    let steps = [];
-    seen.add(current.toString());
-    let [row, col] = current;
-    directions.forEach(dir => {
-      const next = [row+dir[0], col+dir[1]];
-      if (
-        isInBounds(next[0], next[1], map) &&
-        !seen.has(next.toString()) &&
-        map[next[0]][next[1]] !== '#'
-      ) {
-        steps.push(next);
+  let longestPath = 0;
+  const queue = [
+    {start: [0,1], pathLength: 0, seen: new Set()}
+  ];
+  while (queue.length) {
+    let {start, pathLength, seen} = queue.shift();
+    let current = start;
+
+    while (current) {
+      let steps = [];
+      seen.add(current.toString());
+      let [row, col] = current;
+      directions.forEach(dir => {
+        const next = [row+dir[0], col+dir[1]];
+        if (
+          isInBounds(next[0], next[1], map) &&
+          !seen.has(next.toString()) &&
+          map[next[0]][next[1]] !== '#'
+        ) {
+          steps.push(next);
+        }
+      });
+      if (steps.length === 0) {
+        if (current[0] === end[0] && current[1] === end[1]) {
+          longestPath = Math.max(longestPath, pathLength);
+        }
+        current = null;
+      } else if (steps.length === 1) {
+        pathLength++;
+        current = steps[0];
+      } else {
+        // at a split
+        current = null;
+        pathLength++;
+        steps.forEach(step => {
+          queue.push({start: step, pathLength, seen: new Set([...seen])});
+        });
       }
-    });
-    if (steps.length > 1) {
-      // at a split
-      current = null;
-    } else {
-      pathLength++;
-      current = steps[0];
     }
   }
-  console.log(pathLength);
+  return longestPath;
 }
 
 (async function processLineByLine() {
@@ -64,7 +79,7 @@ const search = () => {
     });
 
     await once(rl, 'close');
-    search();
+    console.log(search());
 
   } catch (err) {
     console.error(err);
