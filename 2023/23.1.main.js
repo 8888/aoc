@@ -3,7 +3,6 @@ const { createReadStream } = require('node:fs');
 const { createInterface } = require('node:readline');
 
 const map = [];
-const start = [0,1];
 let end;
 seen = new Set();
 const directions = [
@@ -16,7 +15,7 @@ const directions = [
 const parse = (line) => {
   console.log(line);
   map.push(line);
-  end = [map.length - 1, line.length - 1];
+  end = [map.length - 1, line.length - 2];
 }
 
 const isInBounds = (row, col, grid) => {
@@ -41,7 +40,11 @@ const search = () => {
         if (
           isInBounds(next[0], next[1], map) &&
           !seen.has(next.toString()) &&
-          map[next[0]][next[1]] !== '#'
+          (
+            map[next[0]][next[1]] === '.' ||
+            (map[next[0]][next[1]] === '>' && dir[0] === 0 && dir[1] === 1) ||
+            (map[next[0]][next[1]] === 'v' && dir[0] === 1 && dir[1] === 0)
+          )
         ) {
           steps.push(next);
         }
@@ -70,7 +73,7 @@ const search = () => {
 (async function processLineByLine() {
   try {
     const rl = createInterface({
-      input: createReadStream('23.1.sample.txt'),
+      input: createReadStream('23.1.input.txt'),
       crlfDelay: Infinity,
     });
 
