@@ -4,62 +4,57 @@ const { createInterface } = require('node:readline');
 
 let total = 0;
 
+const isSafe = (row) => {
+  if (parseInt(row[0]) > parseInt(row[1])) {
+    for (let i = 0; i < row.length-1; i++) {
+      const a = parseInt(row[i]);
+      const b = parseInt(row[i+1]);
+      const diff = a - b;
+      if (a <= b || diff < 1 || diff > 3) return i;
+    }
+    return true;
+  } else if (parseInt(row[0]) < parseInt(row[1])) {
+    // increasing, small -> big
+    for (let i = 0; i < row.length-1; i++) {
+      const a = parseInt(row[i]);
+      const b = parseInt(row[i+1]);
+      const diff = b - a;
+      if (a >= b || diff < 1 || diff > 3) return i;
+    }
+    return true;
+  } else {
+    return 0;
+  }
+}
+
 const doWork = (line) => {
   const row = line.split(' ');
   console.log(row);
 
-  let damped = false;
-  let direction; // 'asc' || 'desc'
+  const safe = isSafe(row);
 
-  // if we start with dupes, rip out the first and go
-  if (parseInt(row[0]) === parseInt(row[1])) {
-    row.splice(0, 1);
-    damped = true;
+  if (safe === true) {
+    console.log('safe');
+    total++;
+  } else if (safe === false) {
+    console.log('*** unsafe first try? ***');
+    return; // ever possible?
+  } else {
+    console.log(`UNSAFE! at ${safe}`);
+    const row0 = [...row];
+    row0.splice(safe, 1);
+    const row1 = [...row]
+    row1.splice(safe + 1, 1);
+    const rowX = [...row];
+    rowX.splice(0, 1);
+    console.log(`trying spliced row: ${row0}`);
+    console.log(`trying spliced row: ${row1}`);
+    if (
+      isSafe(row0) === true ||
+      isSafe(row1) === true ||
+      isSafe(rowX) === true
+    ) total++;
   }
-
-  for (let i = 0; i < row.length-1; i++) {
-    const a = parseInt(row[i]);
-    const b = parseInt(row[i+1]);
-
-    // start with dupes
-    if (a === b) {
-      if (damped) return;
-      damped = true;
-    } else if (a < b) {
-      // ascending, small -> big
-      if (direction === 'desc') {
-        if (damped) return;
-        damped = true;
-        row[i+1] = a;
-      } else {
-        const diff = b - a;
-        if (diff < 1 || diff > 3) {
-          if (damped) return;
-          damped = true;
-          row[i+1] = a;
-        } else {
-          direction = 'asc';
-        }
-      }
-    } else { // a > b
-      // descending, big -> small
-      if (direction === 'asc') {
-        if (damped) return;
-        damped = true;
-        row[i+1] = a;
-      } else {
-        const diff = a - b;
-        if (diff < 1 || diff > 3) {
-          if (damped) return;
-          damped = true;
-          row[i+1] = a;
-        } else {
-          direction = 'desc';
-        }
-      }
-    }
-  }
-  total++;
 }
 
 (async function processLineByLine() {
