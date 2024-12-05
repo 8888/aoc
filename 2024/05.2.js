@@ -13,13 +13,21 @@ const rules = {};
 */
 
 let allRulesRead = false;
-
 const init = (line) => {
   if (line === '') {
     allRulesRead = true;
   } else if (allRulesRead) {
     // process print jobs
-    isLineCorrect(line.split(','));
+    let job = line.split(',');
+    let result = isLineCorrect(job);
+    if (result.correct) return;
+    while (!result.correct) {
+      const element = job.splice(result.r, 1);
+      job.splice(result.l, 0, element[0]);
+      result = isLineCorrect(job);
+    }
+    const middle = Math.floor(job.length / 2);
+    total += parseInt(job[middle]);
   } else {
     // process rules
     const r = line.split('|');
@@ -32,17 +40,15 @@ const init = (line) => {
 }
 
 const isLineCorrect = (line) => {
-  console.log(line);
   for (let i = 0; i < line.length -1 ; i++) {
     for (let n = i+1; n < line.length; n++) {
       // if n should be before i, this is invalid
       const left = line[i];
       const right = line[n];
-      if (rules?.[right]?.before?.[left]) return;
+      if (rules?.[right]?.before?.[left]) return { correct: false, l: i, r: n };
     }
   }
-  const middle = Math.floor(line.length / 2);
-  total += parseInt(line[middle]);
+  return { correct: true };
 };
 
 (async function processLineByLine() {
@@ -58,7 +64,6 @@ const isLineCorrect = (line) => {
 
     await once(rl, 'close');
 
-    console.log(rules)
     console.log(total)
 
   } catch (err) {
