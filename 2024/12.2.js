@@ -12,6 +12,13 @@ const directions = [
   {r: 0, c: -1, d: 'l'},
 ];
 
+const corners = [
+  [0, 1], // Up Right
+  [1, 2], // Right Down
+  [2, 3], // Down left
+  [3, 0], // Left Up
+];
+
 const isStepInBounds = (loc, dir) => {
   return (
     loc.r + dir.r >= 0 &&
@@ -45,63 +52,33 @@ const doWork = () => {
   }
 }
 
-const calcSides = (sides, key) => {
-  let totalSides = 0;
-
-  if (key === 'u' || key === 'd') {
-    let rows = {};
-    sides[key].forEach(space => {
-      if (rows[space.r]) {
-        rows[space.r].push(space.c);
-      } else {
-        rows[space.r] = [space.c];
-      }
-    });
-    for (const [_, value] of Object.entries(rows)) {
-      value.sort();
-      let prev = -1;
-      value.forEach(v => {
-        if (prev != -1 && prev + 1 === v) {
-          prev = v;
-        } else {
-          totalSides++;
-          prev = v;
-        }
-      })
+const checkForCorner = (space) => {
+  let sides = 0;
+  corners.forEach(corner => {
+    // are the next plots the same as this
+    const d1 = isStepInBounds(space, directions[corner[0]]) &&
+      map[space.r + directions[corner[0]].r][space.c + directions[corner[0]].c].plant === space.plant;
+    const d2 = isStepInBounds(space, directions[corner[1]]) &&
+      map[space.r + directions[corner[1]].r][space.c + directions[corner[1]].c].plant === space.plant;
+    // diaganol for inside corner
+    const d3Dir = {
+      r: directions[corner[0]].r + directions[corner[1]].r,
+      c: directions[corner[0]].c + directions[corner[1]].c,
+    };
+    const d3 = isStepInBounds(space, d3Dir) &&
+      map[space.r + d3Dir.r][space.c + d3Dir.c].plant === space.plant;
+    if (!d1 && !d2) { // outside corner
+      sides++;
+    } else if (d1 && d2 && !d3) { // inside corner
+      sides++;
     }
-  } else {
-    let cols = {};
-    sides[key].forEach(space => {
-      if (cols[space.c]) {
-        cols[space.c].push(space.r);
-      } else {
-        cols[space.c] = [space.r];
-      }
-    });
-    for (const [_, value] of Object.entries(cols)) {
-      value.sort();
-      let prev = -1;
-      value.forEach(v => {
-        if (prev != -1 && prev + 1 === v) {
-          prev = v;
-        } else {
-          totalSides++;
-          prev = v;
-        }
-      })
-    }
-  }
-  return totalSides;
-}
+  });
+  return sides;
+};
 
 const searchRegion = (r, c) => {
   let area = 0;
-  const sides = {
-    u: [],
-    r: [],
-    d: [],
-    l: [],
-  };
+  let sides = 0;
   const plant = map[r][c].plant;
   const stack = [map[r][c]];
   while (stack.length) {
@@ -109,35 +86,26 @@ const searchRegion = (r, c) => {
     if (current.seen) continue;
     area++;
     current.seen = true;
+    sides += checkForCorner(current);
     directions.forEach(dir => {
       if (isStepInBounds(current, dir)) {
         const next = map[current.r + dir.r][current.c + dir.c];
         if (next.plant === plant) {
           if (!next.seen) stack.push(next);
-        } else {
-          sides[dir.d].push(current);
         }
-      } else {
-        sides[dir.d].push(current);
       }
     });
   }
 
-  let totalSides = 0;
-  totalSides += calcSides(sides, 'u');
-  totalSides += calcSides(sides, 'd');
-  totalSides += calcSides(sides, 'r');
-  totalSides += calcSides(sides, 'l');
-
   console.log(`plant: ${plant}`)
-  console.log(`area: ${area}, sides: ${totalSides}, cost: ${area * totalSides}`);
-  total += area * totalSides;
+  console.log(`area: ${area}, sides: ${sides}, cost: ${area * sides}`);
+  total += area * sides;
 }
 
 (async function processLineByLine() {
   try {
     const rl = createInterface({
-      input: createReadStream('12.test.txt'),
+      input: createReadStream('12.txt'),
       crlfDelay: Infinity,
     });
 
