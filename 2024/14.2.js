@@ -13,12 +13,12 @@ const test = {
   rows: 7,
   cols: 11,
 };
-const silver = {
+const gold = {
   file: '14.txt',
   rows: 103,
   cols: 101,
 };
-const game = silver;
+const game = gold;
 
 const robots = [];
 
@@ -34,7 +34,8 @@ const init = (line = '') => {
 }
 
 const moveRobots = () => {
-  while (!isTree()) {
+  let found = false;
+  while (!found) {
     seconds++;
     robots.forEach(robot => {
       robot.r += robot.vr;
@@ -48,42 +49,16 @@ const moveRobots = () => {
       if (a.r !== b.r) {
         return a.r - b.r;
       } else {
-        return a.c = b.c;
+        return a.c - b.c;
       }
     });
-    // console.log(seconds);
+    found = isTree();
   }
 }
 
 const isTree = () => {
-  /*
-  I guess this is a tree? If this isn't right try adding a stump?
-  .........
-  1....x....
-  2...xxx...
-  3..xxxxx..
-  4.xxxxxxx.
-  5.........
-  sort all, start with top r
-  each level should have previous level +2 total bots
-  and they should be sequential
-  and the middle should be the same as the top
-
-  start looping through what should be a tree from 0,0
-  check that the bots match with an offset set as bot[0]
-  */
-
-  let count = 3;
-  let targetR = robots[0].r + 1;
-  let currentBot = 1;
-  while (currentBot < robots.length) {
-    if (currentBot == 15) console.log('whoa 9 bots')
-    for (let i = 0; i < count; i++) {
-      if (robots[currentBot].r !== targetR) return false;
-      currentBot++;
-    }
-    count += 2;
-    targetR++;
+  for (let i = 1; i < robots.length; i++) {
+    if (robots[i].r === robots[i-1].r && robots[i].c === robots[i-1].c) return false;
   }
   return true;
 }
