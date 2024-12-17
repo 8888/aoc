@@ -8,20 +8,30 @@ const goal = { file: '16.txt' };
 const game = goal;
 
 const map = [];
-const seen = new Set();
+let seen = [];
 let lowestScore = 0;
 let goodSeats = new Set();
 
 const directions = {
-  'n': { r: -1, c: 0, turns: ['e', 'w'] },
-  'e': { r: 0, c: 1, turns: ['n', 's'] },
-  's': { r: 1, c: 0, turns: ['e', 'w'] },
-  'w': { r: 0, c: -1, turns: ['n', 's'] },
+  'n': { r: -1, c: 0, turns: ['e', 'w'], key: 'n' },
+  'e': { r: 0, c: 1, turns: ['n', 's'], key: 'e' },
+  's': { r: 1, c: 0, turns: ['e', 'w'], key: 's' },
+  'w': { r: 0, c: -1, turns: ['n', 's'], key: 'w' },
 };
 
 const init = (line = '') => {
   if (line === '') return;
   map.push(line.split(''));
+}
+
+const initSeen = () => {
+  map.forEach(r => {
+    const row = [];
+    r.forEach(c => {
+      row.push({ n: 0, e: 0, s: 0, w: 0});
+    });
+    seen.push(row);
+  });
 }
 
 const search = () => {
@@ -38,17 +48,20 @@ const search = () => {
     queue.sort((a, b) => b.score - a.score);
     const cur = queue.pop();
 
-    let next = { r: cur.loc.r + cur.dir.r, c: cur.loc.c + cur.dir.c };
+    // check if we've been here going in the same direction
+    // if we have, our scores must be the same to keep going
+    if (
+      seen[cur.loc.r][cur.loc.c][cur.dir.key] !== 0 &&
+      seen[cur.loc.r][cur.loc.c][cur.dir.key] < cur.score
+    ) {
+      continue;
+    } else {
+      seen[cur.loc.r][cur.loc.c][cur.dir.key] = cur.score;
+    }
 
-    // check seen
-    // const str = `${next.r},${next.c},${cur.dir.r},${cur.dir.c}`;
-    // if (seen.has(str)) {
-    //   continue;
-    // } else {
-    //   seen.add(str);
-    // }
 
     // check next straight move
+    let next = { r: cur.loc.r + cur.dir.r, c: cur.loc.c + cur.dir.c };
     if (map[next.r][next.c] === 'E') {
       lowestScore = lowestScore === 0 ? cur.score + 1 : lowestScore;
       if (cur.score + 1 === lowestScore) {
@@ -113,10 +126,11 @@ const printMap = (path = []) => {
 
     await once(rl, 'close');
 
+    initSeen();
     search();
-    console.log(goodSeats.size);
     console.log('*** final map ***');
     printMap(goodSeats)
+    console.log(goodSeats.size);
 
   } catch (err) {
     console.error(err);
