@@ -54,14 +54,11 @@ const directional = {
 const padTypes = {numeric, directional};
 
 const init = (code = '') => {
-  tasks.push({
-    code,
-    pads: [
-      {key: 'A', presses: []},
-      {key: 'A', presses: []},
-      {key: 'A', presses: []},
-    ],
-  });
+  const pads = [];
+  for (let i = 0; i < 3; i++) {
+    pads.push({key: 'A', presses: []});
+  }
+  tasks.push({code, pads});
 }
 
 const debugSteps = (code = [], presses = []) => {
@@ -108,6 +105,62 @@ const left = (currentPad, pad, keyToPress) => {
   return [];
 }
 
+const memo = {};
+const calcPresses = (padType, pad, keyToPress, currentPad) => {
+  // we are going from pad.key to keyToPress
+  if (padType === 'directional') {
+    const str = `${pad.key},${keyToPress}`;
+    if (memo[str]) return ({presses: memo[str], keyToPress});
+  }
+
+  const presses = [];
+  if (
+    (padType === 'numeric' && (
+      (pad.key == 7 || pad.key == 4 || pad.key == 1) &&
+      (keyToPress == 0 || keyToPress === 'A'))
+    ) ||
+    (padType === 'directional' && (
+      pad.key === '<' &&
+      (keyToPress === '^' || keyToPress === 'A'))
+    )
+  ) {
+    // must go hv
+    presses.push(...left(currentPad, pad, keyToPress))
+    presses.push(...right(currentPad, pad, keyToPress))
+    presses.push(...down(currentPad, pad, keyToPress))
+    presses.push(...up(currentPad, pad, keyToPress))
+  } else if (
+    (padType === 'numeric' && (
+      (pad.key == 0 || pad.key === 'A') &&
+      (keyToPress == 1 || keyToPress == 4 || keyToPress == 7))
+    ) ||
+    (padType === 'directional' && (
+      (pad.key === '^' || pad.key === 'A') &&
+      (keyToPress === '<'))
+    )
+  ) {
+    // must go vh
+    presses.push(...down(currentPad, pad, keyToPress))
+    presses.push(...up(currentPad, pad, keyToPress))
+    presses.push(...left(currentPad, pad, keyToPress))
+    presses.push(...right(currentPad, pad, keyToPress))
+  } else {
+    // ideal case of <v^>
+    presses.push(...left(currentPad, pad, keyToPress))
+    presses.push(...down(currentPad, pad, keyToPress))
+    presses.push(...up(currentPad, pad, keyToPress))
+    presses.push(...right(currentPad, pad, keyToPress))
+  }
+  presses.push('A');
+
+  if (padType === 'directional') {
+    const str = `${pad.key},${keyToPress}`;
+    memo[str] = presses;
+  }
+
+  return ({presses, keyToPress});
+
+}
 
 const doWork = () => {
   /*
@@ -120,84 +173,15 @@ const doWork = () => {
     task.pads.forEach((pad, i) => {
       const code = i === 0 ? task.code.split('') : task.pads[i-1].presses;
       const padType = i === 0 ? 'numeric' : 'directional';
-      const currentPad = padTypes[padType];
+      const currentPad = padTypes[padType]; // current pad is the actual object of numerical or directional
 
       code.forEach(keyToPress => {
-        // moving from pad.key to key, then set pad.key to key for next move
-        // check moves right, up, left, down
-        // -: pad.key <--> keyToPress
-        // r: 1,1 <--> 1,2 | pad.key.c < keyToPress.c | keyToPress.c - pad.key.c
-        // d: 1,1 <--> 2,1 | pad.key.r < keyToPress.r | keyToPress.r - pad.key.r
-        // u: 1,1 <--> 0,1 | pad.key.r > keyToPress.r | pad.key.r - keyToPress.r
-        // l: 1,1 <--> 1,0 | pad.key.c > keyToPress.c | pad.key.c - keyToPress.c
-        /*
-        move order still seems to be a bit unintuitively off
-
-        I don't think there is an order that works for all cases,
-        There will be an ideal order, but need to switch if we are going to hit the blank
-        ^> -- vertical then horizontal
-        v> -- vertical then horizontal
-        <^ -- horizontal then vertical
-        <v -- horizontal then vertical
-        So then ideal order is <v^>
-
-        Moving left - horiz then vert
-        Moving right - vert then horiz
-
-        if we'll hit the emtpy spot then switch it
-        // from ^ to < crosses the empty space if you go left down -> must go vh
-        // from 0 to 1 crosses the empty space if you go left up -> must go vh
-        // from 1 to 0 crosses the empty space if you go down right -> must go hv
-        // from < to ^ crosses the empty space if you go up right -> must go hv
-
-        3 cases
-        - the specific move that crosses a space resulting in required vh
-        - the specific move that crosses a space resulting in required hv
-        - ideal case of <v^>
-        */
-
-        if (
-          (padType === 'numeric' && (
-            (pad.key == 7 || pad.key == 4 || pad.key == 1) &&
-            (keyToPress == 0 || keyToPress === 'A'))
-          ) ||
-          (padType === 'directional' && (
-            pad.key === '<' &&
-            (keyToPress === '^' || keyToPress === 'A'))
-          )
-        ) {
-          // must go hv
-          pad.presses.push(...left(currentPad, pad, keyToPress))
-          pad.presses.push(...right(currentPad, pad, keyToPress))
-          pad.presses.push(...down(currentPad, pad, keyToPress))
-          pad.presses.push(...up(currentPad, pad, keyToPress))
-        } else if (
-          (padType === 'numeric' && (
-            (pad.key == 0 || pad.key === 'A') &&
-            (keyToPress == 1 || keyToPress == 4 || keyToPress == 7))
-          ) ||
-          (padType === 'directional' && (
-            (pad.key === '^' || pad.key === 'A') &&
-            (keyToPress === '<'))
-          )
-        ) {
-          // must go vh
-          pad.presses.push(...down(currentPad, pad, keyToPress))
-          pad.presses.push(...up(currentPad, pad, keyToPress))
-          pad.presses.push(...left(currentPad, pad, keyToPress))
-          pad.presses.push(...right(currentPad, pad, keyToPress))
-        } else {
-          // ideal case of <v^>
-          pad.presses.push(...left(currentPad, pad, keyToPress))
-          pad.presses.push(...down(currentPad, pad, keyToPress))
-          pad.presses.push(...up(currentPad, pad, keyToPress))
-          pad.presses.push(...right(currentPad, pad, keyToPress))
-        }
-        pad.presses.push('A');
-        pad.key = keyToPress;
+        const result = calcPresses(padType, pad, keyToPress, currentPad);
+        pad.presses.push(...result.presses);
+        pad.key = result.keyToPress;
       });
     })
-    const complexity = task.pads[2].presses.length * parseInt(task.code.substring(0, 3))
+    const complexity = task.pads[task.pads.length-1].presses.length * parseInt(task.code.substring(0, 3))
     total += complexity;
 
     printAnalysis(task, complexity);
@@ -231,3 +215,37 @@ const doWork = () => {
     console.error(err);
   }
 })();
+
+
+
+/*
++---+---+---+
+| 7 | 8 | 9 |
++---+---+---+
+| 4 | 5 | 6 |
++---+---+---+      +---+---+
+| 1 | 2 | 3 |      | ^ | A |
++---+---+---+  +---+---+---+
+    | 0 | A |  | < | v | > |
+    +---+---+  +---+---+---+
+
+code: 0
+pad 0: 2 <A
+pad 1: 8 v<<A>>^A
+pad 2: 18 <vA<AA>>^AvAA<^A>A
+
+Pairs of movements, (start,finish)
+To get: <A from above
+We have (A,<) & (<,A)
+Move from implicit A to <, then from < to A
+Pair (A,<) requires v<<A
+Pair (<,A) requires >>^A
+So <A will output v<<A>>^A
+
+Run the numeric through the system to get the required directional
+We are overflowing the arrays so we cant complete full levels
+Maybe we can count presses in smallest chunks, and only work on the level that we just wrote out
+
+
+
+*/
