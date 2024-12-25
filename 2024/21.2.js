@@ -183,7 +183,6 @@ const doWork = () => {
     goalSequence = task.pads[0].presses;
     // reset variables and run gold
     goldPresses = 0;
-    goldSequence = [];
     gold();
     const complexity = goldPresses * parseInt(task.code.substring(0, 3))
     total += complexity;
@@ -223,7 +222,6 @@ const moves = {
   '<,>': '>>A',
   '<,v': '>A',
 }
-
 /*
     +---+---+
     | ^ | A |
@@ -231,33 +229,6 @@ const moves = {
 | < | v | > |
 +---+---+---+
 */
-const transforms = {
-  '^': {
-    'A': '^',
-    '>': 'A',
-    'v': 'v',
-  },
-  'A': {
-    'A': 'A',
-    'v': '>',
-    '<': '^',
-  },
-  '>': {
-    '^': 'A',
-    'A': '>',
-    '<': 'v',
-  },
-  'v': {
-    '^': '^',
-    'A': 'v',
-    '>': '>',
-    '<': '<',
-  },
-  '<': {
-    'A': '<',
-    '>': 'v',
-  },
-}
 
 const gold = () => {
   console.log(`Goal sequence: ${goalSequence.join('')}`);
@@ -266,47 +237,22 @@ const gold = () => {
     state.push({loc: 'A'});
   }
   goalSequence.forEach(goal => {
-    // console.log(`Current goal: ${goal}`)
     goldPresses += pressButton(goal, state)
   });
   console.log(`Gold presses: ${goldPresses}`)
-  if (game === test) console.log(goldSequence.join(''))
 }
 
-/*
-code: 029A
-pad 0: 12 <A^A^^>AvvvA
-pad 1: 28 v<<A>>^A<A>A<AAv>A^A<vAAA^>A
-pad 2: 68 <vA<AA>>^AvAA<^A>Av<<A>>^AvA^Av<<A>>^AA<vA>A^A<A>Av<<A>A^>AAA<Av>A^A
-*/
-
-/*
-To memoize pressButton:
-we have a goal, and location of entire state
-can just do a comma seperated string
-*/
-
 let goldPresses = 0;
-let goldSequence = [];
 const memo = {}
 const pressButton = (goal, state = []) => {
   // goal is the button we are targeting
   // state is our state array except sliced to just the relevant bots
-  // const stateStr = state.reduce((acc, cur) => acc += `${cur.loc},`, '');
   const stateStr = state.map(s => s.loc).join(',');
   const memoStr = `${goal},${stateStr}`;
 
   if (state.length === 0) {
-    // no robots, me pressing the buttons freely
-    // I don't think goal is ever longer than 1 char here?
-    if (game === test) goldSequence.push(...goal.split(''));
-    return goal.length;
+    return 1;
   } else if (memo[memoStr]) {
-    // for (let i = 0; i < state.length; i++) {
-    //   // update loc for all
-    //   const strippedMemoStr = memoStr.split(',')
-    //   state[i].loc = strippedMemoStr[i]
-    // }
     state[0].loc = goal;
     return memo[memoStr];
   } else {
