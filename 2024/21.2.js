@@ -106,12 +106,10 @@ const left = (currentPad, pad, keyToPress) => {
   return [];
 }
 
-const memo = {};
 const calcPresses = (padType, pad, keyToPress, currentPad) => {
   // we are going from pad.key to keyToPress
   if (padType === 'directional') {
     const str = `${pad.key},${keyToPress}`;
-    if (memo[str]) return ({presses: memo[str], keyToPress});
   }
 
   const presses = [];
@@ -156,7 +154,6 @@ const calcPresses = (padType, pad, keyToPress, currentPad) => {
 
   if (padType === 'directional') {
     const str = `${pad.key},${keyToPress}`;
-    memo[str] = presses;
   }
 
   return ({presses, keyToPress});
@@ -265,12 +262,12 @@ const transforms = {
 const gold = () => {
   console.log(`Goal sequence: ${goalSequence.join('')}`);
   const state = [];
-  for (let i = 0; i < 2; i++) { // change to number of robots requireds
+  for (let i = 0; i < 25; i++) { // change to number of robots requireds
     state.push({loc: 'A'});
   }
   goalSequence.forEach(goal => {
     // console.log(`Current goal: ${goal}`)
-    pressButton(goal, state)
+    goldPresses += pressButton(goal, state)
   });
   console.log(`Gold presses: ${goldPresses}`)
   if (game === test) console.log(goldSequence.join(''))
@@ -283,25 +280,45 @@ pad 1: 28 v<<A>>^A<A>A<AAv>A^A<vAAA^>A
 pad 2: 68 <vA<AA>>^AvAA<^A>Av<<A>>^AvA^Av<<A>>^AA<vA>A^A<A>Av<<A>A^>AAA<Av>A^A
 */
 
+/*
+To memoize pressButton:
+we have a goal, and location of entire state
+can just do a comma seperated string
+*/
+
 let goldPresses = 0;
 let goldSequence = [];
+const memo = {}
 const pressButton = (goal, state = []) => {
   // goal is the button we are targeting
   // state is our state array except sliced to just the relevant bots
+  // const stateStr = state.reduce((acc, cur) => acc += `${cur.loc},`, '');
+  const stateStr = state.map(s => s.loc).join(',');
+  const memoStr = `${goal},${stateStr}`;
+
   if (state.length === 0) {
     // no robots, me pressing the buttons freely
-    for (let i = 0; i < goal.length; i++) {
-      goldPresses++;
-      // console.log(goal[i]);
-      if (game === test) goldSequence.push(goal[i]);
-    }
+    // I don't think goal is ever longer than 1 char here?
+    if (game === test) goldSequence.push(...goal.split(''));
+    return goal.length;
+  } else if (memo[memoStr]) {
+    // for (let i = 0; i < state.length; i++) {
+    //   // update loc for all
+    //   const strippedMemoStr = memoStr.split(',')
+    //   state[i].loc = strippedMemoStr[i]
+    // }
+    state[0].loc = goal;
+    return memo[memoStr];
   } else {
     const currentMoveRequired = `${state[0].loc},${goal}`
     const nextBotMove = moves[currentMoveRequired];
+    let tempPresses = 0;
     for (let i = 0; i < nextBotMove.length; i++) {
-      pressButton(nextBotMove[i], state.slice(1));
+      tempPresses += pressButton(nextBotMove[i], state.slice(1));
     }
     state[0].loc = goal;
+    memo[memoStr] = tempPresses;
+    return tempPresses;
   }
 }
 
