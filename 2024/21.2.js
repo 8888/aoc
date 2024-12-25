@@ -4,10 +4,11 @@ const { createInterface } = require('node:readline');
 
 const test = { file: '21.test.txt' };
 const goal = { file: '21.txt' };
-const game = test;
+const game = goal;
 
 let total = 0;
 const tasks = [];
+let goalSequence = [];
 
 const numeric = {
   /*
@@ -55,7 +56,7 @@ const padTypes = {numeric, directional};
 
 const init = (code = '') => {
   const pads = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 1; i++) {
     pads.push({key: 'A', presses: []});
   }
   tasks.push({code, pads});
@@ -181,15 +182,127 @@ const doWork = () => {
         pad.key = result.keyToPress;
       });
     })
-    const complexity = task.pads[task.pads.length-1].presses.length * parseInt(task.code.substring(0, 3))
-    total += complexity;
 
-    printAnalysis(task, complexity);
+    goalSequence = task.pads[0].presses;
+    // reset variables and run gold
+    goldPresses = 0;
+    goldSequence = [];
+    gold();
+    const complexity = goldPresses * parseInt(task.code.substring(0, 3))
+    total += complexity;
+    // printAnalysis(task, complexity);
 
     // debugSteps(task.code.split(''), task.pads[0].presses)
     // debugSteps(task.pads[0].presses, task.pads[1].presses)
     // debugSteps(task.pads[1].presses, task.pads[2].presses)
   })
+}
+
+const moves = {
+  // from,to
+  'A,A': 'A',
+  'A,^': '<A',
+  'A,>': 'vA',
+  'A,v': '<vA',
+  'A,<': 'v<<A',
+  '^,^': 'A',
+  '^,A': '>A',
+  '^,>': 'v>A',
+  '^,v': 'vA',
+  '^,<': 'v<A',
+  '>,>': 'A',
+  '>,^': '<^A',
+  '>,A': '^A',
+  '>,v': '<A',
+  '>,<': '<<A',
+  'v,v': 'A',
+  'v,^': '^A',
+  'v,A': '^>A',
+  'v,>': '>A',
+  'v,<': '<A',
+  '<,<': 'A',
+  '<,^': '>^A',
+  '<,A': '>>^A',
+  '<,>': '>>A',
+  '<,v': '>A',
+}
+
+/*
+    +---+---+
+    | ^ | A |
++---+---+---+
+| < | v | > |
++---+---+---+
+*/
+const transforms = {
+  '^': {
+    'A': '^',
+    '>': 'A',
+    'v': 'v',
+  },
+  'A': {
+    'A': 'A',
+    'v': '>',
+    '<': '^',
+  },
+  '>': {
+    '^': 'A',
+    'A': '>',
+    '<': 'v',
+  },
+  'v': {
+    '^': '^',
+    'A': 'v',
+    '>': '>',
+    '<': '<',
+  },
+  '<': {
+    'A': '<',
+    '>': 'v',
+  },
+}
+
+const gold = () => {
+  console.log(`Goal sequence: ${goalSequence.join('')}`);
+  const state = [];
+  for (let i = 0; i < 2; i++) { // change to number of robots requireds
+    state.push({loc: 'A'});
+  }
+  goalSequence.forEach(goal => {
+    // console.log(`Current goal: ${goal}`)
+    pressButton(goal, state)
+  });
+  console.log(`Gold presses: ${goldPresses}`)
+  if (game === test) console.log(goldSequence.join(''))
+}
+
+/*
+code: 029A
+pad 0: 12 <A^A^^>AvvvA
+pad 1: 28 v<<A>>^A<A>A<AAv>A^A<vAAA^>A
+pad 2: 68 <vA<AA>>^AvAA<^A>Av<<A>>^AvA^Av<<A>>^AA<vA>A^A<A>Av<<A>A^>AAA<Av>A^A
+*/
+
+let goldPresses = 0;
+let goldSequence = [];
+const pressButton = (goal, state = []) => {
+  // goal is the button we are targeting
+  // state is our state array except sliced to just the relevant bots
+  if (state.length === 0) {
+    // no robots, me pressing the buttons freely
+    for (let i = 0; i < goal.length; i++) {
+      goldPresses++;
+      // console.log(goal[i]);
+      if (game === test) goldSequence.push(goal[i]);
+    }
+  } else {
+    const currentMoveRequired = `${state[0].loc},${goal}`
+    const nextBotMove = moves[currentMoveRequired];
+    for (let i = 0; i < nextBotMove.length; i++) {
+      pressButton(nextBotMove[i], state.slice(1));
+    }
+    state[0].loc = goal;
+  }
 }
 
 (async function processLineByLine() {
@@ -209,7 +322,7 @@ const doWork = () => {
     doWork();
     const endTime = performance.now()
     console.log(`Run time: ${endTime - startTime}`);
-    console.log(total)
+    console.log(`Total complexity: ${total}`);
 
   } catch (err) {
     console.error(err);
@@ -246,6 +359,103 @@ Run the numeric through the system to get the required directional
 We are overflowing the arrays so we cant complete full levels
 Maybe we can count presses in smallest chunks, and only work on the level that we just wrote out
 
+Maybe instead of getting all moves necessary we have a state object that holds where all robots are
+Then we just calculate what "my" next manual button press is, increment counter, and take that action to the state
 
+code: 029A
+pad 0: 12 <A^A^^>AvvvA
+pad 1: 28 v<<A>>^A<A>A<AAv>A^A<vAAA^>A
+pad 2: 68 <vA<AA>>^AvAA<^A>Av<<A>>^AvA^Av<<A>>^AA<vA>A^A<A>Av<<A>A^>AAA<Av>A^A
+
+so we have a numeric key pad, to enter 029A
+2 robo key pads (pads 0 & 1)
+1 key pad that I am pressing manually
+
+The question here is how many presses do I need to make on my pad to have the first robo pad type in:
+
+goal: <A^A^^>AvvvA
+
+state = [a, a] (just the robo pads)
+step 1, bot 0 needs to move (a,<)
+  (a,<) is v<<A, buabout the first move
+    I click <
+      new state = [a, ^]
+step 2, bot 0 needs to move (a,<) still
+  (a,<) is v<<A, but we only care about the first move to set the new state
+  bot 1 neesd to move (^,v)
+      (^,v) is vA, but we only care about the first move to set the new state
+      I click v
+      bot 1 moves v
+        new state = [a, v]
+step 3, bot 0 needs to move (a,<) still
+  (a,<) is v<<A, but we only care about the first move to set the new state
+  bot 1 needs to move (v,v), we are at the destination
+    I click A
+    bot 1 clicks v
+    bot 0 moves v
+      new state = [>, v]
+step 4, bot 0 needs to move (>, <)
+  (>, <) is <<A, but we only care about the first move to set the new state
+  bot 1 needs to move (v, <)
+    (v, <) is <
+    I click <
+    bot 1 moves <
+      new state = [>, <]
+step 5, bot 0 needs to move (>, <)
+  (>, <) is <<A, but we only care about the first move to set the new state
+  bot 1 needs to move(<, <), we are at the destination
+    I click A
+    bot 1 clicks <
+    bot 0 moves <
+      new state = [v, <]
+step 6, bot 0 needs to move (v, <)
+  (v, <) is <A
+  bot 1 needs to move (<, <), we are there
+    I click A
+    bot 1 clicks <
+    bot 0 moves <
+      new state = [<, <]
+step 7, bot 0 needs to move (<, <), we are there
+  bot 1 needs to click A, so t we only care about the first move to set the new state
+  bot 1 neesd to move (a,v)
+    (a,v) is <vA, but we only care move (<, A)
+    (<, A) is >>^
+    I click >
+    bot 1 moves >
+      new state = [<, v]
+
+      +---+---+
+      | ^ | A |
+  +---+---+---+
+  | < | v | > |
+  +---+---+---+
+Always try to fo LDUR <v^> unless we hit the blank space
+moves = {
+  'A,A': 'A',
+  'A,^': '<',
+  'A,>': 'v',
+  'A,v': '<v',
+  'A,<': 'v<<<',
+  '^,^': 'A',
+  '^,A': '>',
+  '^,>': 'v>',
+  '^,v': 'v',
+  '^,<': 'v<',
+  '>,>': 'A',
+  '>,^': '<^',
+  '>,A': '^',
+  '>,v': '<',
+  '>,<': '<<',
+  'v,v': 'A',
+  'v,^': '^',
+  'v,A': '^>',
+  'v,>': '>',
+  'v,<': '<',
+  '<,<': 'A',
+  '<,^': '>^',
+  '<,A': '>>^',
+  '<,>': '>>',
+  '<,v': '>',
+}
 
 */
