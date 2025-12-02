@@ -1,5 +1,4 @@
 import java.io.File
-    import kotlin.math.abs
 
 val inputText = File("01.txt").readText()
 val puzzle = inputText.split("\n")
