@@ -1,8 +1,10 @@
 /*
+Pass 1
 A new plan is needed
 We are using a BFS, and optimized memory as much as my limited Kotlin knowledge allowed
 But we are still running out of memory before completing
 
+Pass 2
 Move to A*
 - First recheck all of the setup to make sure its cler and correct
 - Then we need some heuristic to prioritize the queue
@@ -10,6 +12,12 @@ Move to A*
 -- we should still always prioritize least presses first, then distance
 -- we'll have to use the value of the largest increase from a button to weight how far we are from the goal so presses don't get ignored
 -- set a heuristic equal to distance / largest step? then add number of presses? This way the pressess are properly weighted to how far they can go
+
+Pass 3
+A* works but the heuristic needs some tuning
+- Just using the sum of the current location, goal, and buttons ignores which index needs to increment
+- A button that increments many lights gets valued higher, even if they're the wrong lights
+- We can probably still create a few less objects and make less copies
  */
 
 import java.io.File
@@ -49,11 +57,18 @@ var total = 0
 val goalPattern = "\\{(.*?)\\}".toRegex()
 val buttonsPattern = "\\(([^)]*)\\)".toRegex()
 
-fun calculateHeuristic(current: IntArray, totalGoalSum: Int, maxButtonPower: Int): Int {
-  val currentSum = current.sum()
-  val remaining = totalGoalSum - currentSum
-  if (remaining <= 0) return 0
-  return (remaining + maxButtonPower - 1) / maxButtonPower
+fun calculateHeuristic(current: IntArray, goal: IntArray, maxIncPerIndex: IntArray): Int {
+  var maxRequiredPresses = 0
+  for (i in current.indices) {
+    val remaining = goal[i] - current[i]
+    if (remaining <= 0) continue
+    if (maxIncPerIndex[i] == 0) return Int.MAX_VALUE
+
+    val power = maxIncPerIndex[i]
+    val pressesNeeded = (remaining + power - 1) / power
+    if (pressesNeeded > maxRequiredPresses) maxRequiredPresses = pressesNeeded
+  }
+  return maxRequiredPresses
 }
 
 File("10.txt").forEachLine { line ->
@@ -63,23 +78,31 @@ File("10.txt").forEachLine { line ->
     ?.map { it.toInt() }
     ?: listOf()
   val goal = goalList.toIntArray()
-  val buttons = buttonsPattern.findAll(line)
+
+  // there are some buttons that increment the same index multiple times in a single press!
+  // we need to make sure that we don't miss that this can bring it over the goal, which gives you a negative h
+  val rawButtons = buttonsPattern.findAll(line)
     .map { it.groupValues[1] }
     .map { button ->
       button.split(',').map { it.toInt() }
     }
     .toList()
+  val buttonDeltas = ArrayList<IntArray>()
+  for (indices in rawButtons) {
+    val delta = IntArray(goal.size)
+    for (idx in indices) delta[idx]++
+    buttonDeltas.add(delta)
+  }
 
-  // all buttons increment each index by 1, so more indexes = mo powa!
-  val maxButtonPower = buttons.maxOfOrNull { it.size } ?: 1
-  val totalGoalSum = goal.sum()
-
-  val current = IntArray(goal.size)
-  val initialH = calculateHeuristic(current, totalGoalSum, maxButtonPower)
-  val attempt = Attempt(current, 0, initialH)
+  val maxIncPerIndex = IntArray(goal.size)
+  for (delta in buttonDeltas) {
+    for (i in delta.indices) maxIncPerIndex[i] = maxOf(maxIncPerIndex[i], delta[i])
+  }
 
   val queue = PriorityQueue<Attempt>()
-  queue.add(attempt)
+  val current = IntArray(goal.size)
+  val initialH = calculateHeuristic(current, goal, maxIncPerIndex)
+  queue.add(Attempt(current, 0, initialH))
 
   val seen = mutableSetOf<SeenAttemptWrapper>()
   seen.add(SeenAttemptWrapper(current))
@@ -89,27 +112,27 @@ File("10.txt").forEachLine { line ->
 
     if (step.current.contentEquals(goal)) {
       total += step.presses
+      queue.clear()
       break
     }
 
-    for (i in buttons.indices) {
-      val next = step.current.copyOf()
-      for (idx in buttons[i]) next[idx]++
-
-      var inBounds = true
-      for (k in next.indices) {
-        if (next[k] > goal[k]) {
-          inBounds = false
+    for (delta in buttonDeltas) {
+      var isValid = true
+      for (i in step.current.indices) {
+        if (step.current[i] + delta[i] > goal[i]) {
+          isValid = false
           break
         }
       }
+      if (isValid) {
+        val next = IntArray(goal.size)
+        for (i in step.current.indices) next[i] = step.current[i] + delta[i]
 
-      if (inBounds) {
         val seenWrapper = SeenAttemptWrapper(next)
         if (!seen.contains(seenWrapper)) {
           seen.add(seenWrapper)
-          val h = calculateHeuristic(next, totalGoalSum, maxButtonPower)
-          queue.add(Attempt(next, step.presses + 1, h))
+          val h = calculateHeuristic(next, goal, maxIncPerIndex)
+          if (h != Int.MAX_VALUE) queue.add(Attempt(next, step.presses + 1, h))
         }
       }
     }
