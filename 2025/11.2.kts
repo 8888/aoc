@@ -77,11 +77,13 @@ class Graph {
     val canReachTarget = nodesThatCanReach(target)
     if (start !in canReachTarget) return 0L
 
-    val inPath = HashSet<String>()
+    val memo = mutableMapOf<Triple<String, Boolean, Boolean>, Long>()
 
     fun dfs(node: String, seenDac: Boolean, seenFft: Boolean): Long {
+      val memoKey = Triple(node, seenDac, seenFft)
+      if (memo.containsKey(memoKey)) return memo.getValue(memoKey)
+
       if (node !in canReachTarget) return 0L
-      if (!inPath.add(node)) return 0L // set.add returns a boolean! ez cycle detection!
 
       val nextSeenDac = seenDac || (node == "dac")
       val nextSeenFft = seenFft || (node == "fft")
@@ -98,7 +100,7 @@ class Graph {
         sum
       }
 
-      inPath.remove(node)
+      memo[memoKey] = total
       return total
     }
 
@@ -116,5 +118,5 @@ File("11.txt").forEachLine { line ->
   }
 }
 
-println(graph.hasCycle("svr", "out"))
-// println(graph.countSimplePaths("svr", "out"))
+// println(graph.hasCycle("svr", "out")) // false
+println(graph.countSimplePaths("svr", "out"))
